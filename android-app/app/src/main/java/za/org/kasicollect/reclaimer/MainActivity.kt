@@ -6,8 +6,6 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.*
-import za.org.kasicollect.reclaimer.hardware.ScaleEvent
-import za.org.kasicollect.reclaimer.hardware.ScaleIngressManager
 
 class MainActivity : Activity() {
 
@@ -17,8 +15,11 @@ class MainActivity : Activity() {
     private lateinit var btnTabReclaimer: Button
     private lateinit var etLandmark: EditText
     private lateinit var btnSubmitManifest: Button
-    private lateinit var btnClaim1: Button
-    private lateinit var btnClaim2: Button
+    private lateinit var reclaimerFeedContainer: LinearLayout
+    private lateinit var tvNearbyTitle: TextView
+
+    private val cbList = mutableListOf<CheckBox>()
+    private var pickupCount = 2
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,29 +31,22 @@ class MainActivity : Activity() {
         btnTabReclaimer = findViewById(R.id.btnTabReclaimer)
         etLandmark = findViewById(R.id.etLandmark)
         btnSubmitManifest = findViewById(R.id.btnSubmitManifest)
-        btnClaim1 = findViewById(R.id.btnClaim1)
-        btnClaim2 = findViewById(R.id.btnClaim2)
+        tvNearbyTitle = findViewById(R.id.tvNearbyTitle)
 
-        // Tab Switching
-        btnTabResident.setOnClickListener {
-            viewResident.visibility = View.VISIBLE
-            viewReclaimer.visibility = View.GONE
-            btnTabResident.setBackgroundColor(Color.parseColor("#059669"))
-            btnTabResident.setTextColor(Color.WHITE)
-            btnTabReclaimer.setBackgroundColor(Color.parseColor("#1E293B"))
-            btnTabReclaimer.setTextColor(Color.parseColor("#94A3B8"))
-        }
+        // Find existing cards parent container
+        reclaimerFeedContainer = viewReclaimer
 
-        btnTabReclaimer.setOnClickListener {
-            viewResident.visibility = View.GONE
-            viewReclaimer.visibility = View.VISIBLE
-            btnTabReclaimer.setBackgroundColor(Color.parseColor("#059669"))
-            btnTabReclaimer.setTextColor(Color.WHITE)
-            btnTabResident.setBackgroundColor(Color.parseColor("#1E293B"))
-            btnTabResident.setTextColor(Color.parseColor("#94A3B8"))
-        }
+        val cbPet = findViewById<CheckBox>(R.id.cbPet)
+        val cbCans = findViewById<CheckBox>(R.id.cbCans)
+        val cbCardboard = findViewById<CheckBox>(R.id.cbCardboard)
+        val cbMilk = findViewById<CheckBox>(R.id.cbMilk)
+        cbList.addAll(listOf(cbPet, cbCans, cbCardboard, cbMilk))
 
-        // Resident Request Manifest
+        // Role Tab Switching
+        btnTabResident.setOnClickListener { switchTab(isResident = true) }
+        btnTabReclaimer.setOnClickListener { switchTab(isResident = false) }
+
+        // Dynamic Manifest Submission: Resident -> Reclaimer Feed
         btnSubmitManifest.setOnClickListener {
             val landmark = etLandmark.text.toString().trim()
             if (landmark.isEmpty()) {
@@ -60,26 +54,110 @@ class MainActivity : Activity() {
                 return@setOnClickListener
             }
 
-            AlertDialog.Builder(this)
-                .setTitle("Pickup Logged! ♻️")
-                .setMessage("Your request for '$landmark' is live.\n\nYour Pickup Code is: KC-7821\nShow this code to the trolley reclaimer to receive your R5.00 Spaza voucher.")
-                .setPositiveButton("OK") { _, _ -> etLandmark.setText("") }
-                .show()
-        }
+            val selectedMaterials = cbList.filter { it.isChecked }.map { it.text.toString() }
+            val materialsSummary = if (selectedMaterials.isEmpty()) "Mixed Recyclables" else selectedMaterials.joinToString(", ")
 
-        // Reclaimer Scale Handoff Flow
-        val handleClaim = { locationName: String ->
+            // Add new dynamic pickup card into Reclaimer feed
+            addDynamicPickupCard(materialsSummary, landmark)
+
             AlertDialog.Builder(this)
-                .setTitle("Claiming Bag at $locationName")
-                .setMessage("Connecting to WH-A08 Bluetooth Scale...\n\nReading verified weight: 4.25 kg Clean PET.\n\nR5.00 Spaza Voucher triggered to household.")
-                .setPositiveButton("Complete & Sync") { _, _ ->
-                    Toast.makeText(this, "Batch recorded to encrypted ledger!", Toast.LENGTH_LONG).show()
+                .setTitle("Pickup Live on Reclaimer Radar! ♻️")
+                .setMessage("Your bag at '$landmark' is now broadcast to nearby trolley reclaimers.\n\nEstimated pickup: ~15 mins.\nYour R5.00 Spaza code: KC-${(1000..9999).random()}")
+                .setPositiveButton("View in Reclaimer Feed") { _, _ ->
+                    etLandmark.setText("")
+                    switchTab(isResident = false)
                 }
-                .setNegativeButton("Cancel", null)
                 .show()
         }
 
-        btnClaim1.setOnClickListener { handleClaim("8th Ave, near Taxi Rank") }
-        btnClaim2.setOnClickListener { handleClaim("12th Ave, corner Vas St") }
+        // Bind existing static cards
+        findViewById<Button>(R.id.btnClaim1).setOnClickListener { triggerScaleModal("8th Ave, near Taxi Rank", "Clear PET Plastic") }
+        findViewById<Button>(R.id.btnClaim2).setOnClickListener { triggerScaleModal("12th Ave, corner Vas St", "Drink Cans, Cardboard") }
+    }
+
+    private fun switchTab(isResident: Boolean) {
+        if (isResident) {
+            viewResident.visibility = View.VISIBLE
+            viewReclaimer.visibility = View.GONE
+            btnTabResident.setBackgroundColor(Color.parseColor("#059669"))
+            btnTabResident.setTextColor(Color.WHITE)
+            btnTabReclaimer.setBackgroundColor(Color.parseColor("#1E293B"))
+            btnTabReclaimer.setTextColor(Color.parseColor("#94A3B8"))
+        } else {
+            viewResident.visibility = View.GONE
+            viewReclaimer.visibility = View.VISIBLE
+            btnTabReclaimer.setBackgroundColor(Color.parseColor("#059669"))
+            btnTabReclaimer.setTextColor(Color.WHITE)
+            btnTabResident.setBackgroundColor(Color.parseColor("#1E293B"))
+            btnTabResident.setTextColor(Color.parseColor("#94A3B8"))
+        }
+    }
+
+    private fun addDynamicPickupCard(materials: String, landmark: String) {
+        pickupCount++
+        tvNearbyTitle.text = "Available Clean Pickups ($pickupCount nearby)"
+
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.parseColor("#131E32"))
+            setPadding(40, 40, 40, 40)
+            val params = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            params.setMargins(0, 0, 0, 30)
+            layoutParams = params
+        }
+
+        val badge = TextView(this).apply {
+            text = "JUST NOW • READY AT GATE"
+            setTextColor(Color.parseColor("#34D399"))
+            textSize = 11f
+        }
+
+        val title = TextView(this).apply {
+            text = materials
+            setTextColor(Color.WHITE)
+            textSize = 16f
+            setPadding(0, 8, 0, 8)
+        }
+
+        val loc = TextView(this).apply {
+            text = "📍 $landmark"
+            setTextColor(Color.parseColor("#94A3B8"))
+            textSize = 13f
+            setPadding(0, 0, 0, 24)
+        }
+
+        val claimBtn = Button(this).apply {
+            text = "🛒 I'm on my way (Claim Bag)"
+            setBackgroundColor(Color.parseColor("#059669"))
+            setTextColor(Color.WHITE)
+            setOnClickListener {
+                triggerScaleModal(landmark, materials)
+                card.visibility = View.GONE
+                pickupCount--
+                tvNearbyTitle.text = "Available Clean Pickups ($pickupCount nearby)"
+            }
+        }
+
+        card.addView(badge)
+        card.addView(title)
+        card.addView(loc)
+        card.addView(claimBtn)
+
+        // Insert at the top of the feed
+        reclaimerFeedContainer.addView(card, 2)
+    }
+
+    private fun triggerScaleModal(location: String, materials: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Weighbridge & Voucher Handoff")
+            .setMessage("Location: $location\nStream: $materials\n\nScale: WH-A08 (Auto-Calibrated)\nVerified Net Weight: 3.80 kg\n\n✅ Resident R5.00 Spaza Voucher Dispatched.\n✅ Transaction sealed with HMAC signature.")
+            .setPositiveButton("Complete Pickup") { _, _ ->
+                Toast.makeText(this, "Batch synced to encrypted ledger!", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 }
