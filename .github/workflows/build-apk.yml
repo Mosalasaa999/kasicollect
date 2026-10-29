@@ -1,4 +1,4 @@
-﻿name: Build KasiCollect APK
+name: Build KasiCollect APK
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
     - name: Build Debug APK
       run: |
         cd android-app
-        gradle assembleDebug --no-daemon --stacktrace
+        gradle assembleDebug -Pandroid.useAndroidX=true --no-daemon --stacktrace
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
