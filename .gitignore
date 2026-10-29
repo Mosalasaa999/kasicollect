@@ -1,0 +1,19 @@
+﻿# Environment / Keys
+*.env
+*.key
+*.crt
+certs/
+
+# Go builds
+backend/bin/
+backend/vendor/
+
+# Android / Gradle
+.gradle/
+build/
+android-app/app/build/
+*.apk
+*.aab
+local.properties
+.idea/
+*.iml
