@@ -3,82 +3,352 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="20dp"
-    android:background="#0F172A">
+    android:background="#0A1120">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="KasiCollect Edge"
-        android:textColor="#38BDF8"
-        android:textSize="24sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Alex Ward 108 • Corridor 8th-12th"
-        android:textColor="#94A3B8"
-        android:textSize="14sp"
-        android:layout_marginBottom="24dp" />
-
-    <!-- Scale Readout Box -->
+    <!-- Top Navigation Header -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="#1E293B"
-        android:padding="20dp"
-        android:layout_marginBottom="20dp">
+        android:orientation="horizontal"
+        android:background="#059669"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:gravity="center_vertical">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="KasiCollect ♻️"
+                android:textColor="#FFFFFF"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Alexandra Pilot • Ward 107/108"
+                android:textColor="#D1FAE5"
+                android:textSize="13sp" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="BLUETOOTH SCALE (WH-A08)"
-            android:textColor="#94A3B8"
-            android:textSize="12sp" />
-
-        <TextView
-            android:id="@+id/tvWeightDisplay"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="0.00 kg"
-            android:textColor="#4ADE80"
-            android:textSize="44sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Status: Scale Standby / Disconnected"
-            android:textColor="#F59E0B"
-            android:textSize="12sp" />
+            android:text="Free APK"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textSize="12sp"
+            android:background="#065F46"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp" />
     </LinearLayout>
 
-    <Button
-        android:id="@+id/btnSimulateWeigh"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:text="Simulate Verified PET Scale Reading (4.25kg)"
-        android:backgroundTint="#2563EB"
-        android:textColor="#FFFFFF"
-        android:layout_marginBottom="12dp" />
-
-    <Button
-        android:id="@+id/btnTriggerSync"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:text="Sync Offline Ledger to Cloud"
-        android:backgroundTint="#059669"
-        android:textColor="#FFFFFF"
-        android:layout_marginBottom="24dp" />
-
-    <TextView
-        android:id="@+id/tvLedgerCount"
+    <!-- Role Switcher Segmented Tabs -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Local Encrypted Queue: 0 pending collections"
-        android:textColor="#CBD5E1"
-        android:textSize="14sp" />
+        android:orientation="horizontal"
+        android:padding="16dp">
+
+        <Button
+            android:id="@+id/btnTabResident"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:text="🏠 I Have Waste (Resident)"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:backgroundTint="#059669"
+            android:textColor="#FFFFFF"
+            android:layout_marginEnd="6dp" />
+
+        <Button
+            android:id="@+id/btnTabReclaimer"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:text="🛒 I'm Collecting (Reclaimer)"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:backgroundTint="#1E293B"
+            android:textColor="#94A3B8"
+            android:layout_marginStart="6dp" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- RESIDENT VIEW CONTAINER -->
+            <LinearLayout
+                android:id="@+id/viewResident"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="#131E32"
+                android:padding="20dp"
+                android:layout_marginBottom="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Log a Bag for Collection"
+                    android:textColor="#34D399"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Separate your waste, earn instant rewards, and help local trolley reclaimers."
+                    android:textColor="#94A3B8"
+                    android:textSize="13sp"
+                    android:layout_marginBottom="20dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="What recyclables do you have?"
+                    android:textColor="#CBD5E1"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="12dp" />
+
+                <!-- Material Grid Selection -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <CheckBox
+                        android:id="@+id/cbPet"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:text="🍼 Plastic Bottles"
+                        android:textColor="#FFFFFF"
+                        android:checked="true"
+                        android:background="#1E293B"
+                        android:padding="8dp"
+                        android:layout_marginEnd="4dp" />
+
+                    <CheckBox
+                        android:id="@+id/cbCans"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:text="🥫 Drink Cans"
+                        android:textColor="#FFFFFF"
+                        android:background="#1E293B"
+                        android:padding="8dp"
+                        android:layout_marginStart="4dp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="20dp">
+
+                    <CheckBox
+                        android:id="@+id/cbCardboard"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:text="📦 Cardboard"
+                        android:textColor="#FFFFFF"
+                        android:background="#1E293B"
+                        android:padding="8dp"
+                        android:layout_marginEnd="4dp" />
+
+                    <CheckBox
+                        android:id="@+id/cbMilk"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:text="🥛 Milk Jugs"
+                        android:textColor="#FFFFFF"
+                        android:background="#1E293B"
+                        android:padding="8dp"
+                        android:layout_marginStart="4dp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Your Street &amp; Landmark"
+                    android:textColor="#CBD5E1"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="8dp" />
+
+                <EditText
+                    android:id="@+id/etLandmark"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:hint="e.g. 10th Ave, next to Blue Spaza"
+                    android:textColorHint="#64748B"
+                    android:textColor="#FFFFFF"
+                    android:background="#0A1120"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:layout_marginBottom="20dp" />
+
+                <Button
+                    android:id="@+id/btnSubmitManifest"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:text="🚀 REQUEST RECLAIMER PICKUP"
+                    android:backgroundTint="#059669"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold"
+                    android:textSize="15sp" />
+            </LinearLayout>
+
+            <!-- RECLAIMER VIEW CONTAINER -->
+            <LinearLayout
+                android:id="@+id/viewReclaimer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tvNearbyTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Available Clean Pickups (2 nearby)"
+                    android:textColor="#34D399"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Claim a bag to let the household know you are on your way."
+                    android:textColor="#94A3B8"
+                    android:textSize="13sp"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- Pickup Card 1 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="#131E32"
+                    android:padding="16dp"
+                    android:layout_marginBottom="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="CLEAN &amp; SORTED • 10 mins ago"
+                        android:textColor="#10B981"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Clear PET Plastic"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:layout_marginTop="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📍 8th Ave, near Taxi Rank"
+                        android:textColor="#94A3B8"
+                        android:textSize="13sp"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="14dp" />
+
+                    <Button
+                        android:id="@+id/btnClaim1"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:text="🛒 I'm on my way (Claim Bag)"
+                        android:backgroundTint="#1E293B"
+                        android:textColor="#38BDF8" />
+                </LinearLayout>
+
+                <!-- Pickup Card 2 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="#131E32"
+                    android:padding="16dp"
+                    android:layout_marginBottom="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="CLEAN &amp; SORTED • 25 mins ago"
+                        android:textColor="#10B981"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Drink Cans, Cardboard"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:layout_marginTop="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📍 12th Ave, corner Vas St"
+                        android:textColor="#94A3B8"
+                        android:textSize="13sp"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="14dp" />
+
+                    <Button
+                        android:id="@+id/btnClaim2"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:text="🛒 I'm on my way (Claim Bag)"
+                        android:backgroundTint="#1E293B"
+                        android:textColor="#38BDF8" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Bottom Security & Trust Badge -->
+    <TextView
+        android:id="@+id/tvFooterBadge"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🔒 100% Free • No Cash Needed • Spaza Vouchers Supported"
+        android:textColor="#94A3B8"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:padding="12dp"
+        android:background="#0A1120" />
 </LinearLayout>
