@@ -1,12 +1,11 @@
 ﻿package za.org.kasicollect.reclaimer.data
 
-import android.content.ContentValues
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
+import androidx.room.*
 
+@Entity(tableName = "transaction_ledger")
 data class CollectionRecord(
-    val transactionId: String,
+    @PrimaryKey val transactionId: String,
     val manifestId: String,
     val reclaimerHash: String,
     val materialClass: String,
@@ -21,61 +20,39 @@ data class CollectionRecord(
     val payloadHmac: String
 )
 
-class LocalDbHelper(context: Context) : SQLiteOpenHelper(context, "kasicollect_ledger.db", null, 1) {
+@Dao
+interface TransactionDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTransaction(record: CollectionRecord)
 
-    override fun onCreate(db: SQLiteDatabase) {
-        db.execSQL("""
-            CREATE TABLE transaction_ledger (
-                transactionId TEXT PRIMARY KEY,
-                manifestId TEXT,
-                reclaimerHash TEXT,
-                materialClass TEXT,
-                grossWeightKg REAL,
-                tareWeightKg REAL,
-                netWeightKg REAL,
-                scaleMac TEXT,
-                deviceTimestampUtc INTEGER,
-                maskedLatitude REAL,
-                maskedLongitude REAL,
-                syncState TEXT,
-                payloadHmac TEXT
-            )
-        """.trimIndent())
-    }
+    @Query("SELECT * FROM transaction_ledger WHERE syncState = 'QUEUED' ORDER BY deviceTimestampUtc ASC")
+    suspend fun getPendingTransactions(): List<CollectionRecord>
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS transaction_ledger")
-        onCreate(db)
-    }
+    @Query("UPDATE transaction_ledger SET syncState = :state WHERE transactionId = :txId")
+    suspend fun updateSyncStatus(txId: String, state: String)
 
-    fun insertTransaction(record: CollectionRecord) {
-        val db = writableDatabase
-        val values = ContentValues().apply {
-            put("transactionId", record.transactionId)
-            put("manifestId", record.manifestId)
-            put("reclaimerHash", record.reclaimerHash)
-            put("materialClass", record.materialClass)
-            put("grossWeightKg", record.grossWeightKg)
-            put("tareWeightKg", record.tareWeightKg)
-            put("netWeightKg", record.netWeightKg)
-            put("scaleMac", record.scaleMac)
-            put("deviceTimestampUtc", record.deviceTimestampUtc)
-            put("maskedLatitude", record.maskedLatitude)
-            put("maskedLongitude", record.maskedLongitude)
-            put("syncState", record.syncState)
-            put("payloadHmac", record.payloadHmac)
+    @Query("SELECT COUNT(*) FROM transaction_ledger WHERE syncState = 'QUEUED'")
+    suspend fun getPendingCount(): Int
+}
+
+@Database(entities = [CollectionRecord::class], version = 1, exportSchema = true)
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun transactionDao(): TransactionDao
+
+    companion object {
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
+
+        fun getDatabase(context: Context): AppDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
+                    "kasicollect_ledger.db"
+                ).build()
+                INSTANCE = instance
+                instance
+            }
         }
-        db.insertWithOnConflict("transaction_ledger", null, values, SQLiteDatabase.CONFLICT_REPLACE)
-    }
-
-    fun getPendingCount(): Int {
-        val db = readableDatabase
-        val cursor = db.rawQuery("SELECT COUNT(*) FROM transaction_ledger WHERE syncState = 'QUEUED'", null)
-        var count = 0
-        if (cursor.moveToFirst()) {
-            count = cursor.getInt(0)
-        }
-        cursor.close()
-        return count
     }
 }
