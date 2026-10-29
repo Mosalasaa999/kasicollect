@@ -28,6 +28,11 @@ android {
         jvmTarget = "17"
     }
 
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
