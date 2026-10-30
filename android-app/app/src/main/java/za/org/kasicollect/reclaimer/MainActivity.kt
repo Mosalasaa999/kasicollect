@@ -1,18 +1,22 @@
 package za.org.kasicollect.reclaimer
 
-import (
-    android.app.Activity
-    android.app.AlertDialog
-    android.graphics.Color
-    android.os.Bundle
-    android.view.View
-    android.widget.*
-    java.io.OutputStreamWriter
-    java.net.HttpURLConnection
-    java.net.URL
-    kotlin.concurrent.thread
-    org.json.JSONArray
-    org.json.JSONObject
+import android.app.Activity
+import android.app.AlertDialog
+import android.graphics.Color
+import android.os.Bundle
+import android.view.View
+import android.widget.Button
+import android.widget.CheckBox
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.concurrent.thread
+import org.json.JSONArray
+import org.json.JSONObject
 
 class MainActivity : Activity() {
 
@@ -65,7 +69,6 @@ class MainActivity : Activity() {
             val materialsSummary = if (selectedMaterials.isEmpty()) "Mixed Recyclables" else selectedMaterials.joinToString(", ")
             val manifestId = "KC-" + (1000..9999).random()
 
-            // Transmit to Cloud asynchronously
             thread {
                 try {
                     val url = URL("$cloudUrl/v1/manifests")
@@ -109,7 +112,6 @@ class MainActivity : Activity() {
             }
         }
 
-        // Fetch initial cloud feed
         fetchCloudManifests()
     }
 
@@ -148,8 +150,6 @@ class MainActivity : Activity() {
                     runOnUiThread {
                         tvNearbyTitle.text = "Available Clean Pickups (${array.length()} active on cloud)"
                         reclaimerFeedContainer.removeAllViews()
-
-                        // Re-add title
                         reclaimerFeedContainer.addView(tvNearbyTitle)
 
                         for (i in 0 until array.length()) {
@@ -203,7 +203,7 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.parseColor("#059669"))
             setTextColor(Color.WHITE)
             setOnClickListener {
-                syncHandoffToCloud(manifestId, landmark, materials, card)
+                syncHandoffToCloud(manifestId, card)
             }
         }
 
@@ -214,7 +214,7 @@ class MainActivity : Activity() {
         reclaimerFeedContainer.addView(card)
     }
 
-    private fun syncHandoffToCloud(manifestId: String, landmark: String, materials: String, cardView: View) {
+    private fun syncHandoffToCloud(manifestId: String, cardView: View) {
         thread {
             try {
                 val url = URL("$cloudUrl/v1/sync/batch")
@@ -229,7 +229,7 @@ class MainActivity : Activity() {
                     put("transaction_id", "TX-" + (10000..99999).random())
                     put("manifest_id", manifestId)
                     put("reclaimer_hash", "rec_za_alex_anchor_01")
-                    put("material", materials)
+                    put("material", "Clear PET")
                     put("net_kg", 4.25)
                     put("tare_kg", 0.20)
                     put("scale_mac", "00:1B:44:11:3A:B7")
