@@ -1,10 +1,9 @@
-﻿package main
+package main
 
 import (
     "context"
     "database/sql"
     "encoding/json"
-    "fmt"
     "log"
     "net/http"
     "os"
@@ -40,7 +39,6 @@ func initDB(connStr string) (*sql.DB, error) {
         return nil, err
     }
 
-    // Auto-create ledger tables on boot
     schema := `
     CREATE TABLE IF NOT EXISTS transaction_handoff_logs (
         transaction_id VARCHAR(64) PRIMARY KEY,
@@ -127,7 +125,6 @@ func main() {
 
     gateway := &IngestGateway{db: db}
 
-    // Healthcheck endpoint
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(map[string]string{
