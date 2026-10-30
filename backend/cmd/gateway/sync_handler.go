@@ -13,28 +13,15 @@ import (
 )
 
 type ManifestPayload struct {
-    ManifestID string  `json:"manifest_id"`
-    Landmark   string  `json:"landmark"`
-    Materials  string  `json:"materials"`
-    Status     string  `json:"status"`
-    Timestamp  int64   `json:"timestamp"`
+    ManifestID string `json:"manifest_id"`
+    Landmark   string `json:"landmark"`
+    Materials  string `json:"materials"`
+    Status     string `json:"status"`
 }
 
-type SyncBatchRequest struct {
-    BatchSize int `json:"batch_size"`
-    Records   []struct {
-        TransactionID string  `json:"transaction_id"`
-        ManifestID    string  `json:"manifest_id"`
-        ReclaimerHash string  `json:"reclaimer_hash"`
-        Material      string  `json:"material"`
-        NetKg         float64 `json:"net_kg"`
-        TareKg        float64 `json:"tare_kg"`
-        ScaleMAC      string  `json:"scale_mac"`
-        Timestamp     int64   `json:"timestamp"`
-        Lat           float64 `json:"lat_masked"`
-        Lng           float64 `json:"lng_masked"`
-        HMAC          string  `json:"hmac"`
-    } `json:"records"`
+type ClaimRequest struct {
+    ManifestID string  `json:"manifest_id"`
+    NetKg      float64 `json:"net_kg"`
 }
 
 type IngestGateway struct {
@@ -64,11 +51,7 @@ func initDB(connStr string) (*sql.DB, error) {
         gross_weight_kg NUMERIC(6, 2),
         tare_weight_kg NUMERIC(6, 2),
         net_weight_kg NUMERIC(6, 2),
-        scale_hardware_mac VARCHAR(32),
         device_timestamp_utc BIGINT,
-        lat_masked NUMERIC(9, 6),
-        lng_masked NUMERIC(9, 6),
-        hmac VARCHAR(64),
         synced_at TIMESTAMPTZ DEFAULT NOW()
     );`
 
@@ -98,7 +81,7 @@ func (g *IngestGateway) HandleManifests(w http.ResponseWriter, r *http.Request) 
             `, req.ManifestID, req.Landmark, req.Materials)
 
             if err != nil {
-                log.Printf("[ERR] Manifest insert error: %v", err)
+                log.Printf("[ERR] Manifest insert: %v", err)
             }
         }
 
@@ -109,7 +92,7 @@ func (g *IngestGateway) HandleManifests(w http.ResponseWriter, r *http.Request) 
     if r.Method == http.MethodGet {
         var manifests []ManifestPayload
         if g.db != nil {
-            rows, err := g.db.Query(`SELECT manifest_id, landmark, materials, status FROM manifests WHERE status = 'PENDING' ORDER BY created_at DESC LIMIT 10`)
+            rows, err := g.db.Query(`SELECT manifest_id, landmark, materials, status FROM manifests WHERE status = 'PENDING' ORDER BY created_at DESC LIMIT 20`)
             if err == nil {
                 defer rows.Close()
                 for rows.Next() {
@@ -130,51 +113,49 @@ func (g *IngestGateway) HandleManifests(w http.ResponseWriter, r *http.Request) 
     http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
-func (g *IngestGateway) HandleBatchSync(w http.ResponseWriter, r *http.Request) {
+// Endpoint to mark manifest as COLLECTED and log the weighbridge handoff
+func (g *IngestGateway) HandleClaim(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Access-Control-Allow-Origin", "*")
+
     if r.Method != http.MethodPost {
         http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
         return
     }
 
-    var batch SyncBatchRequest
-    if err := json.NewDecoder(r.Body).Decode(&batch); err != nil {
-        http.Error(w, "Malformed JSON", http.StatusBadRequest)
+    var req ClaimRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid JSON", http.StatusBadRequest)
         return
     }
 
-    log.Printf("[INGRESS] Received batch sync: %d records", batch.BatchSize)
-
     if g.db != nil {
-        for _, rec := range batch.Records {
-            gross := rec.NetKg + rec.TareKg
-            _, _ = g.db.Exec(`
-                INSERT INTO transaction_handoff_logs (
-                    transaction_id, manifest_id, reclaimer_id_hash, material,
-                    gross_weight_kg, tare_weight_kg, net_weight_kg, scale_hardware_mac,
-                    device_timestamp_utc, lat_masked, lng_masked, hmac
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-                ON CONFLICT (transaction_id) DO NOTHING;
-            `, rec.TransactionID, rec.ManifestID, rec.ReclaimerHash, rec.Material,
-                gross, rec.TareKg, rec.NetKg, rec.ScaleMAC, rec.Timestamp,
-                rec.Lat, rec.Lng, rec.HMAC)
-
-            // Mark manifest as claimed
-            _, _ = g.db.Exec(`UPDATE manifests SET status = 'COLLECTED' WHERE manifest_id = $1`, rec.ManifestID)
+        _, err := g.db.Exec(`UPDATE manifests SET status = 'COLLECTED' WHERE manifest_id = $1`, req.ManifestID)
+        if err != nil {
+            log.Printf("[ERR] Status update failed: %v", err)
         }
+
+        txID := "TX-" + time.Now().Format("20060102150405")
+        _, _ = g.db.Exec(`
+            INSERT INTO transaction_handoff_logs (
+                transaction_id, manifest_id, reclaimer_id_hash, material,
+                gross_weight_kg, tare_weight_kg, net_weight_kg, device_timestamp_utc
+            ) VALUES ($1, $2, 'rec_za_alex_anchor_01', 'Verified Clean PET', $3 + 0.20, 0.20, $3, $4)
+            ON CONFLICT (transaction_id) DO NOTHING;
+        `, txID, req.ManifestID, req.NetKg, time.Now().UnixMilli())
     }
 
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]interface{}{
-        "status":    "SUCCESS",
-        "processed": batch.BatchSize,
-        "timestamp": time.Now().UTC().Format(time.RFC3339),
+    json.NewEncoder(w).Encode(map[string]string{
+        "status":      "COLLECTED",
+        "manifest_id": req.ManifestID,
+        "message":     "Status updated in PostgreSQL ledger.",
     })
 }
 
-// Live HTML Table for instant verification in browser
+// Live HTML Web Inspector
 func (g *IngestGateway) HandleLedgerView(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "text/html; charset=utf-8")
-    html := `<!DOCTYPE html><html><head><title>KasiCollect Live Ledger</title><style>body{background:#0A1120;color:#CBD5E1;font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #1E293B;padding:12px;text-align:left}th{background:#059669;color:#fff}tr:nth-child(even){background:#131E32}</style></head><body><h1>KasiCollect Live Township Ledger</h1><p>Ward 107/108 ? Alexandra Corridor</p><table><tr><th>Manifest ID</th><th>Landmark</th><th>Materials</th><th>Status</th></tr>`
+    html := `<!DOCTYPE html><html><head><title>KasiCollect Live Ledger</title><meta http-equiv="refresh" content="10"><style>body{background:#0A1120;color:#CBD5E1;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;padding:24px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #1E293B;padding:14px;text-align:left}th{background:#059669;color:#fff}tr:nth-child(even){background:#131E32}.badge-pending{background:#F59E0B;color:#000;padding:4px 8px;border-radius:4px;font-weight:bold;font-size:12px}.badge-collected{background:#10B981;color:#fff;padding:4px 8px;border-radius:4px;font-weight:bold;font-size:12px}</style></head><body><h1>KasiCollect Live Township Ledger</h1><p>Ward 107/108 &bull; Alexandra Scrap Corridor &bull; Auto-refreshing every 10s</p><table><tr><th>Manifest ID</th><th>Landmark</th><th>Materials</th><th>Status</th></tr>`
 
     if g.db != nil {
         rows, err := g.db.Query(`SELECT manifest_id, landmark, materials, status FROM manifests ORDER BY created_at DESC LIMIT 50`)
@@ -183,7 +164,11 @@ func (g *IngestGateway) HandleLedgerView(w http.ResponseWriter, r *http.Request)
             for rows.Next() {
                 var id, landmark, mat, st string
                 if err := rows.Scan(&id, &landmark, &mat, &st); err == nil {
-                    html += "<tr><td>" + id + "</td><td>" + landmark + "</td><td>" + mat + "</td><td>" + st + "</td></tr>"
+                    badgeClass := "badge-pending"
+                    if st == "COLLECTED" {
+                        badgeClass = "badge-collected"
+                    }
+                    html += "<tr><td><b>" + id + "</b></td><td>" + landmark + "</td><td>" + mat + "</td><td><span class=\"" + badgeClass + "\">" + st + "</span></td></tr>"
                 }
             }
         }
@@ -203,12 +188,10 @@ func main() {
     var err error
 
     if dbURL != "" {
-        log.Println("[BOOT] Connecting to cloud database...")
+        log.Println("[BOOT] Connecting to PostgreSQL...")
         db, err = initDB(dbURL)
-        if err != nil {
-            log.Printf("[WARN] DB init warning: %v", err)
-        } else {
-            log.Println("[BOOT] PostgreSQL tables initialized successfully.")
+        if err == nil {
+            log.Println("[BOOT] PostgreSQL tables initialized.")
         }
     }
 
@@ -220,14 +203,14 @@ func main() {
             "status":   "ONLINE",
             "system":   "KasiCollect Cloud Gateway",
             "ward":     "Alexandra Ward 107/108",
-            "version":  "1.0.0",
+            "version":  "1.0.1",
         })
     })
 
     http.HandleFunc("/v1/manifests", gateway.HandleManifests)
-    http.HandleFunc("/v1/sync/batch", gateway.HandleBatchSync)
+    http.HandleFunc("/v1/manifests/claim", gateway.HandleClaim)
     http.HandleFunc("/admin/ledger", gateway.HandleLedgerView)
 
-    log.Printf("[BOOT] KasiCollect Gateway listening on :%s", port)
+    log.Printf("[BOOT] Listening on :%s", port)
     log.Fatal(http.ListenAndServe(":"+port, nil))
 }

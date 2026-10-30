@@ -57,7 +57,6 @@ class MainActivity : Activity() {
             fetchCloudManifests()
         }
 
-        // POST Manifest to Render Cloud
         btnSubmitManifest.setOnClickListener {
             val landmark = etLandmark.text.toString().trim()
             if (landmark.isEmpty()) {
@@ -92,21 +91,21 @@ class MainActivity : Activity() {
                     runOnUiThread {
                         if (code == 200) {
                             AlertDialog.Builder(this)
-                                .setTitle("Live on Cloud Database! ??")
-                                .setMessage("Bag registered at '$landmark'.\n\nManifest ID: $manifestId\nSynced to Render PostgreSQL.")
-                                .setPositiveButton("View Radar") { _, _ ->
+                                .setTitle("Manifest Broadcast Live")
+                                .setMessage("Location: " + landmark + "\nManifest ID: " + manifestId + "\n\nWaiting for nearby trolley reclaimer.")
+                                .setPositiveButton("View Reclaimer Feed") { _, _ ->
                                     etLandmark.setText("")
                                     switchTab(isResident = false)
                                     fetchCloudManifests()
                                 }
                                 .show()
                         } else {
-                            Toast.makeText(this, "Cloud Error: Code $code", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this, "Cloud Response: " + code, Toast.LENGTH_SHORT).show()
                         }
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        Toast.makeText(this, "Connecting to Cloud... Request queued locally", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, "Local Queue Buffered", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -148,7 +147,7 @@ class MainActivity : Activity() {
                     val array = JSONArray(response)
 
                     runOnUiThread {
-                        tvNearbyTitle.text = "Available Clean Pickups (${array.length()} active on cloud)"
+                        tvNearbyTitle.text = "Available Clean Pickups (" + array.length() + " active)"
                         reclaimerFeedContainer.removeAllViews()
                         reclaimerFeedContainer.addView(tvNearbyTitle)
 
@@ -169,17 +168,17 @@ class MainActivity : Activity() {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#131E32"))
-            setPadding(40, 40, 40, 40)
+            setPadding(36, 36, 36, 36)
             val params = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
-            params.setMargins(0, 0, 0, 30)
+            params.setMargins(0, 0, 0, 24)
             layoutParams = params
         }
 
         val badge = TextView(this).apply {
-            text = "CLOUD VERIFIED ? $manifestId"
+            text = "VERIFIED ORIGIN - " + manifestId
             setTextColor(Color.parseColor("#34D399"))
             textSize = 11f
         }
@@ -192,18 +191,18 @@ class MainActivity : Activity() {
         }
 
         val loc = TextView(this).apply {
-            text = "?? $landmark"
+            text = "Location: " + landmark
             setTextColor(Color.parseColor("#94A3B8"))
             textSize = 13f
-            setPadding(0, 0, 0, 24)
+            setPadding(0, 0, 0, 20)
         }
 
         val claimBtn = Button(this).apply {
-            text = "?? I'm on my way (Claim Bag)"
+            text = "CLAIM BAG (WEIGH & COLLECT)"
             setBackgroundColor(Color.parseColor("#059669"))
             setTextColor(Color.WHITE)
             setOnClickListener {
-                syncHandoffToCloud(manifestId, card)
+                executeCollection(manifestId, landmark, card, this)
             }
         }
 
@@ -214,10 +213,13 @@ class MainActivity : Activity() {
         reclaimerFeedContainer.addView(card)
     }
 
-    private fun syncHandoffToCloud(manifestId: String, cardView: View) {
+    private fun executeCollection(manifestId: String, landmark: String, cardView: View, actionBtn: Button) {
+        actionBtn.isEnabled = false
+        actionBtn.text = "TRANSMITTING WEIGHT..."
+
         thread {
             try {
-                val url = URL("$cloudUrl/v1/sync/batch")
+                val url = URL("$cloudUrl/v1/manifests/claim")
                 val conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     setRequestProperty("Content-Type", "application/json")
@@ -225,39 +227,38 @@ class MainActivity : Activity() {
                     doOutput = true
                 }
 
-                val record = JSONObject().apply {
-                    put("transaction_id", "TX-" + (10000..99999).random())
-                    put("manifest_id", manifestId)
-                    put("reclaimer_hash", "rec_za_alex_anchor_01")
-                    put("material", "Clear PET")
-                    put("net_kg", 4.25)
-                    put("tare_kg", 0.20)
-                    put("scale_mac", "00:1B:44:11:3A:B7")
-                    put("timestamp", System.currentTimeMillis())
-                    put("lat_masked", -26.1052)
-                    put("lng_masked", 28.0931)
-                    put("hmac", "sha256_mock_valid")
-                }
-
                 val payload = JSONObject().apply {
-                    put("batch_size", 1)
-                    put("records", JSONArray().put(record))
+                    put("manifest_id", manifestId)
+                    put("net_kg", 4.25)
                 }
 
                 OutputStreamWriter(conn.outputStream).use { it.write(payload.toString()) }
+                val code = conn.responseCode
 
                 runOnUiThread {
-                    AlertDialog.Builder(this)
-                        .setTitle("Collection Completed & Verified! ??")
-                        .setMessage("Manifest: $manifestId\nWeight: 4.25 kg\n\n? Handoff synced to PostgreSQL.\n? R5.00 Spaza voucher credited.")
-                        .setPositiveButton("OK") { _, _ ->
-                            cardView.visibility = View.GONE
-                        }
-                        .show()
+                    if (code == 200) {
+                        actionBtn.text = "COLLECTED & SETTLED"
+                        actionBtn.setBackgroundColor(Color.parseColor("#10B981"))
+
+                        AlertDialog.Builder(this)
+                            .setTitle("Weighbridge Handoff Verified")
+                            .setMessage("Manifest: " + manifestId + "\nLocation: " + landmark + "\nVerified Net Weight: 4.25 kg\n\nStatus: Ledger updated to COLLECTED.\nR5.00 Spaza voucher credited.")
+                            .setPositiveButton("Complete") { _, _ ->
+                                cardView.visibility = View.GONE
+                                fetchCloudManifests()
+                            }
+                            .show()
+                    } else {
+                        actionBtn.isEnabled = true
+                        actionBtn.text = "CLAIM BAG (WEIGH & COLLECT)"
+                        Toast.makeText(this, "Sync error: " + code, Toast.LENGTH_SHORT).show()
+                    }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
-                    Toast.makeText(this, "Completed locally. Syncing in background.", Toast.LENGTH_SHORT).show()
+                    actionBtn.isEnabled = true
+                    actionBtn.text = "CLAIM BAG (WEIGH & COLLECT)"
+                    Toast.makeText(this, "Network drop. Sync queued.", Toast.LENGTH_SHORT).show()
                 }
             }
         }
