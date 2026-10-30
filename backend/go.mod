@@ -1,4 +1,4 @@
-﻿module za.org.kasicollect/core
+module za.org.kasicollect/core
 
 go 1.22
 

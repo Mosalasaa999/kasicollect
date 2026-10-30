@@ -1,15 +1,16 @@
-﻿FROM golang:1.22-alpine AS builder
+FROM golang:1.22-alpine AS builder
 WORKDIR /app
 
-# Copy dependency definitions and auto-generate go.sum
-COPY backend/go.mod ./
+# Copy entire backend source
+COPY backend/ ./
+
+# Clean module checksums
 RUN go mod tidy
 
-# Copy application source code and compile
-COPY backend/ ./
+# Compile binary
 RUN CGO_ENABLED=0 GOOS=linux go build -o /kasicollect-gateway ./cmd/gateway/sync_handler.go
 
-# Production minimal container
+# Minimal runtime image
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /root/
